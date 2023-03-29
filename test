@@ -1,0 +1,24 @@
+This is a regular expression written in Python using the re module. It creates a compiled regular expression object that can be used to search for patterns in strings.
+
+Here is a breakdown of the different parts of the regular expression:
+
+re.compile(): This method compiles the regular expression pattern into a regular expression object that can be used for matching.
+(?<!^): This is a negative lookbehind assertion that matches any whitespace character that is not at the beginning of a line.
+\s+: This matches one or more whitespace characters.
+(?=[word]): This is a positive lookahead assertion that matches only if the next character is the literal string "word".
+(?!.\s): This is a negative lookahead assertion that matches only if the next character is not a whitespace character.
+So, this regular expression will match any whitespace character that is not at the beginning of a line, followed by one or more whitespace characters, followed by the literal string "word", followed by a non-whitespace character.
+
+This line of code is using the re module in Python to split a string variable var using a regular expression pattern. Let me break it down for you:
+
+re.compile creates a regular expression object from the pattern inside the parentheses.
+
+"(?<!^)\s+" matches one or more whitespace characters (\s+) that are not at the beginning of the line ((?<!^)).
+
+"(?=[word])" is a positive lookahead assertion that matches a position followed by the word "word".
+
+"(?!.\s)" is a negative lookahead assertion that matches a position that is not followed by a non-newline character (.) and a whitespace character (\s).
+
+.split(var) uses the regular expression pattern to split the string variable var.
+
+In summary, this regular expression pattern splits the string variable var at any whitespace characters that are not at the beginning of the line, immediately followed by the word "word", and not followed by a non-newline character and a whitespace character
