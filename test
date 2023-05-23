@@ -1,0 +1,63 @@
+import re
+
+# Function to format PEM content
+
+def format_pem(pem_content):
+
+    # Remove newline characters
+
+    pem_content = pem_content.replace('\n', '')
+
+    # Add newline after every 64 characters
+
+    pem_content = re.sub(r'(.{64})', r'\1\n', pem_content, 0, re.DOTALL)
+
+    # Add newline before '-----BEGIN' and after '-----END'
+
+    pem_content = re.sub(r'(\s*-----BEGIN)', r'\n\1', pem_content)
+
+    pem_content = re.sub(r'(-----END\s*$)', r'\1\n', pem_content)
+
+    return pem_content
+
+# Function to extract subject and issuer information from PEM content
+
+def extract_information(pem_content):
+
+    # Remove newline characters and leading/trailing whitespaces
+
+    pem_content = pem_content.replace('\n', '').strip()
+
+    # Extract subject and issuer information using regex
+
+    subject = re.search(r'subject=(.*?),', pem_content).group(1)
+
+    issuer = re.search(r'issuer=(.*?),', pem_content).group(1)
+
+    return subject, issuer
+
+# Sample PEM content
+
+pem_content = '''<your PEM content>'''
+
+# Format the PEM content
+
+formatted_pem = format_pem(pem_content)
+
+# Extract subject and issuer information
+
+subject, issuer = extract_information(formatted_pem)
+
+# Print the formatted PEM content and extracted information
+
+print("Formatted PEM content:")
+
+print(formatted_pem)
+
+print("\nExtracted Information:")
+
+print("Subject:", subject)
+
+print("Issuer:", issuer)
+
+ 
