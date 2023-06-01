@@ -1,0 +1,54 @@
+import requests
+
+# API credentials
+
+nsx_manager = "https://<nsx-manager>"
+
+username = "your_username"
+
+password = "your_password"
+
+# Authentication
+
+auth_url = nsx_manager + "/api/2.0/services/auth/token"
+
+auth_data = {
+
+    "username": username,
+
+    "password": password
+
+}
+
+auth_response = requests.post(auth_url, json=auth_data, verify=False)
+
+auth_response.raise_for_status()
+
+auth_token = auth_response.json()["token"]
+
+# Retrieve certificate information
+
+cert_url = nsx_manager + "/api/2.0/services/truststore/certificates"
+
+cert_headers = {
+
+    "Content-Type": "application/json",
+
+    "X-NSX-Access-Token": auth_token
+
+}
+
+cert_response = requests.get(cert_url, headers=cert_headers, verify=False)
+
+cert_response.raise_for_status()
+
+certificates = cert_response.json()["certificate"]
+
+# Process the response
+
+for certificate in certificates:
+
+    # Perform any desired operations with each certificate
+
+    print(certificate["subject"], certificate["issuer"], certificate["validityPeriod"])
+
