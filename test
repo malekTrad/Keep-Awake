@@ -1,0 +1,46 @@
+import requests
+import xml.etree.ElementTree as ET
+
+# API credentials
+nsx_manager = "https://<nsx-manager>"
+username = "your_username"
+password = "your_password"
+
+# Authentication
+auth_url = nsx_manager + "/api/2.0/services/auth/token"
+auth_data = {
+    "username": username,
+    "password": password
+}
+auth_response = requests.post(auth_url, json=auth_data, verify=False)
+auth_response.raise_for_status()
+auth_token = auth_response.text
+
+# Retrieve certificate information
+cert_url = nsx_manager + "/api/2.0/services/truststore/certificates"
+cert_headers = {
+    "Content-Type": "application/xml",
+    "X-NSX-Access-Token": auth_token
+}
+cert_response = requests.get(cert_url, headers=cert_headers, verify=False)
+cert_response.raise_for_status()
+
+# Process the response
+cert_xml = ET.fromstring(cert_response.text)
+namespaces = {
+    "ns": "http://vmware.com/ns/nsx"
+}
+certificates = cert_xml.findall(".//ns:certificate", namespaces)
+
+for certificate in certificates:
+    subject = certificate.find("ns:subject", namespaces).text
+    issuer = certificate.find("ns:issuer", namespaces).text
+    validity = certificate.find("ns:validityPeriod", namespaces)
+    start_date = validity.find("ns:notBefore", namespaces).text
+    end_date = validity.find("ns:notAfter", namespaces).text
+
+    # Perform any desired operations with each certificate
+    print("Subject:", subject)
+    print("Issuer:", issuer)
+    print("Validity Period:", start_date, "to", end_date)
+    print()
