@@ -1,28 +1,21 @@
-        // Function to display the value of the selected host in the textbox
-        function displaySelectedValue() {
-            var selectedCluster = document.getElementById("cluster").value;
-            var selectedHost = document.getElementById("host").value;
-            var selectedValueTextbox = document.getElementById("value");
-
-            // Find the corresponding value for the selected host and cluster in the JSON data
-            var selectedValue = jsonData.find(item => item.host === selectedHost && item.cluster === selectedCluster)?.value;
-
-            // Display the selected value in the textbox
-            selectedValueTextbox.value = selectedValue || '';
-
-            // Set the selected attribute for the corresponding options in the dropdowns
+        // Function to load all the clusters and hosts
+        function loadClustersAndHosts() {
             var clusterDropdown = document.getElementById("cluster");
             var hostDropdown = document.getElementById("host");
-            for (var i = 0; i < clusterDropdown.options.length; i++) {
-                clusterDropdown.options[i].removeAttribute("selected");
-                if (clusterDropdown.options[i].value === selectedCluster) {
-                    clusterDropdown.options[i].setAttribute("selected", "selected");
-                }
-            }
-            for (var j = 0; j < hostDropdown.options.length; j++) {
-                hostDropdown.options[j].removeAttribute("selected");
-                if (hostDropdown.options[j].value === selectedHost) {
-                    hostDropdown.options[j].setAttribute("selected", "selected");
-                }
-            }
+
+            var uniqueClusters = [...new Set(jsonData.map(item => item.cluster))];
+            uniqueClusters.forEach(cluster => {
+                var option = document.createElement("option");
+                option.value = cluster;
+                option.textContent = cluster;
+                clusterDropdown.appendChild(option);
+            });
+
+            // Load all the hosts initially
+            jsonData.forEach(item => {
+                var option = document.createElement("option");
+                option.value = item.host;
+                option.textContent = item.host;
+                hostDropdown.appendChild(option);
+            });
         }
