@@ -1,23 +1,75 @@
-import json
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dropdown List Example</title>
+</head>
+<body>
+    <h1>Dropdown List Example</h1>
+    
+    <!-- First Dropdown List -->
+    <label for="cluster">Select Cluster:</label>
+    <select id="cluster" onchange="populateHosts()">
+        <option value="">Select</option>
+    </select>
+    
+    <!-- Second Dropdown List -->
+    <label for="host">Select Host:</label>
+    <select id="host" onchange="displaySelectedValue()">
+        <option value="">Select</option>
+    </select>
 
-# Read the JSON file
-with open('data.json') as f:
-    data = json.load(f)
+    <!-- Textbox to display selected value -->
+    <label for="value">Selected Value:</label>
+    <input type="text" id="value" readonly>
 
-# Create a dictionary to store merged data
-merged_data = {}
+    <!-- Hidden JSON data -->
+    <script type="text/javascript">
+        var jsonData = [
+            { cluster: "x", host: "1", value: 100 },
+            { cluster: "x", host: "10", value: 1000 },
+            { cluster: "x", host: "11", value: 1001 },
+            { cluster: "y", host: "22", value: 100 },
+            { cluster: "Z", host: "1", value: 100 }
+        ];
 
-# Iterate over the data and merge the dictionaries with the same "name" value
-for item in data:
-    name = item['name']
-    if name not in merged_data:
-        merged_data[name] = item
-    else:
-        merged_data[name].update(item)
+        // Populate the first dropdown list with unique clusters
+        var clusterDropdown = document.getElementById("cluster");
+        var uniqueClusters = [...new Set(jsonData.map(item => item.cluster))];
+        uniqueClusters.forEach(cluster => {
+            var option = document.createElement("option");
+            option.value = cluster;
+            option.textContent = cluster;
+            clusterDropdown.appendChild(option);
+        });
 
-# Convert the merged data to a list
-merged_list = list(merged_data.values())
+        // Function to populate the second dropdown list based on the selected cluster
+        function populateHosts() {
+            var selectedCluster = clusterDropdown.value;
+            var hostDropdown = document.getElementById("host");
+            hostDropdown.innerHTML = "<option value=''>Select</option>";
 
-# Write the merged data to a new JSON file
-with open('merged_data.json', 'w') as f:
-    json.dump(merged_list, f, indent=4)
+            if (selectedCluster !== "") {
+                var hostsForCluster = jsonData.filter(item => item.cluster === selectedCluster);
+                hostsForCluster.forEach(item => {
+                    var option = document.createElement("option");
+                    option.value = item.host;
+                    option.textContent = item.host;
+                    hostDropdown.appendChild(option);
+                });
+            }
+        }
+
+        // Function to display the value of the selected host in the textbox
+        function displaySelectedValue() {
+            var selectedHost = document.getElementById("host").value;
+            var selectedValueTextbox = document.getElementById("value");
+
+            // Find the corresponding value for the selected host in the JSON data
+            var selectedValue = jsonData.find(item => item.host === selectedHost)?.value;
+
+            // Display the selected value in the textbox
+            selectedValueTextbox.value = selectedValue || '';
+        }
+    </script>
+</body>
+</html>
