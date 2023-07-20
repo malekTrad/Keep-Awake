@@ -14,7 +14,7 @@
     
     <!-- Second Dropdown List -->
     <label for="host">Select Host:</label>
-    <select id="host" onchange="displaySelectedValue()">
+    <select id="host" onchange="populateCluster()">
         <option value="">Select</option>
     </select>
 
@@ -32,19 +32,31 @@
             { cluster: "Z", host: "1", value: 100 }
         ];
 
-        // Populate the first dropdown list with unique clusters
-        var clusterDropdown = document.getElementById("cluster");
-        var uniqueClusters = [...new Set(jsonData.map(item => item.cluster))];
-        uniqueClusters.forEach(cluster => {
-            var option = document.createElement("option");
-            option.value = cluster;
-            option.textContent = cluster;
-            clusterDropdown.appendChild(option);
-        });
+        // Function to load all the clusters and hosts
+        function loadClustersAndHosts() {
+            var clusterDropdown = document.getElementById("cluster");
+            var hostDropdown = document.getElementById("host");
+
+            var uniqueClusters = [...new Set(jsonData.map(item => item.cluster))];
+            uniqueClusters.forEach(cluster => {
+                var option = document.createElement("option");
+                option.value = cluster;
+                option.textContent = cluster;
+                clusterDropdown.appendChild(option);
+            });
+
+            // Load all the hosts initially
+            jsonData.forEach(item => {
+                var option = document.createElement("option");
+                option.value = item.host;
+                option.textContent = item.host;
+                hostDropdown.appendChild(option);
+            });
+        }
 
         // Function to populate the second dropdown list based on the selected cluster
         function populateHosts() {
-            var selectedCluster = clusterDropdown.value;
+            var selectedCluster = document.getElementById("cluster").value;
             var hostDropdown = document.getElementById("host");
             hostDropdown.innerHTML = "<option value=''>Select</option>";
 
@@ -57,8 +69,25 @@
                     hostDropdown.appendChild(option);
                 });
             }
-            // Clear the textbox value when cluster selection changes
-            document.getElementById("value").value = "";
+        }
+
+        // Function to populate the first dropdown list based on the selected host
+        function populateCluster() {
+            var selectedHost = document.getElementById("host").value;
+            var clusterDropdown = document.getElementById("cluster");
+            var selectedCluster = "";
+
+            if (selectedHost !== "") {
+                var hostData = jsonData.find(item => item.host === selectedHost);
+                if (hostData) {
+                    selectedCluster = hostData.cluster;
+                }
+            }
+
+            // Update the selected cluster in the first dropdown list
+            clusterDropdown.value = selectedCluster;
+            // Populate the second dropdown list based on the selected cluster
+            populateHosts();
         }
 
         // Function to display the value of the selected host in the textbox
@@ -73,6 +102,11 @@
             // Display the selected value in the textbox
             selectedValueTextbox.value = selectedValue || '';
         }
+
+        // Load all clusters and hosts initially
+        loadClustersAndHosts();
     </script>
 </body>
 </html>
+
+
