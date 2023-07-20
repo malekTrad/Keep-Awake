@@ -57,15 +57,18 @@
                     hostDropdown.appendChild(option);
                 });
             }
+            // Clear the textbox value when cluster selection changes
+            document.getElementById("value").value = "";
         }
 
         // Function to display the value of the selected host in the textbox
         function displaySelectedValue() {
+            var selectedCluster = document.getElementById("cluster").value;
             var selectedHost = document.getElementById("host").value;
             var selectedValueTextbox = document.getElementById("value");
 
-            // Find the corresponding value for the selected host in the JSON data
-            var selectedValue = jsonData.find(item => item.host === selectedHost)?.value;
+            // Find the corresponding value for the selected host and cluster in the JSON data
+            var selectedValue = jsonData.find(item => item.host === selectedHost && item.cluster === selectedCluster)?.value;
 
             // Display the selected value in the textbox
             selectedValueTextbox.value = selectedValue || '';
