@@ -1,0 +1,58 @@
+import requests
+
+# Replace these with your vROps API credentials
+VROPS_BASE_URL = "https://your_vrops_instance"
+USERNAME = "your_username"
+PASSWORD = "your_password"
+
+# Replace this with the ID of the group you want to add the host to
+GROUP_ID = "your_group_id"
+
+# Replace this with the ID of the host or cluster you want to add to the group
+HOST_OR_CLUSTER_ID = "your_host_or_cluster_id"
+
+def add_host_to_group():
+    # Obtain an authentication token
+    auth_token = get_auth_token()
+
+    # Prepare the request headers
+    headers = {
+        "Authorization": f"vRealizeOpsToken {auth_token}",
+        "Content-Type": "application/json"
+    }
+
+    # Prepare the request payload
+    payload = {
+        "identifier": {
+            "identifierType": "HostSystem"  # Replace with "ClusterComputeResource" for clusters
+        },
+        "resourceId": HOST_OR_CLUSTER_ID
+    }
+
+    # Send the request to add the host to the group
+    url = f"{VROPS_BASE_URL}/suite-api/api/objects/groups/{GROUP_ID}/members"
+    response = requests.post(url, headers=headers, json=payload)
+
+    if response.status_code == 200:
+        print("Host added to the group successfully!")
+    else:
+        print(f"Failed to add host to group. Status code: {response.status_code}")
+        print(response.text)
+
+def get_auth_token():
+    # Authenticate and obtain an API token
+    auth_url = f"{VROPS_BASE_URL}/suite-api/api/auth/token/acquire"
+    auth_payload = {
+        "username": USERNAME,
+        "password": PASSWORD
+    }
+
+    response = requests.post(auth_url, json=auth_payload)
+
+    if response.status_code == 200:
+        return response.json()["token"]
+    else:
+        raise Exception("Authentication failed.")
+
+if __name__ == "__main__":
+    add_host_to_group()
