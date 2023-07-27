@@ -21,23 +21,30 @@ def add_host_to_group():
         "Content-Type": "application/json"
     }
 
-    # Prepare the request payload
-    payload = {
-        "identifier": {
-            "identifierType": "HostSystem"  # Replace with "ClusterComputeResource" for clusters
-        },
-        "resourceId": HOST_OR_CLUSTER_ID
-    }
+    # Get the existing group definition
+    group_url = f"{VROPS_BASE_URL}/suite-api/api/resources/groups/{GROUP_ID}"
+    response = requests.get(group_url, headers=headers)
 
-    # Send the request to add the host to the group
-    url = f"{VROPS_BASE_URL}/suite-api/api/objects/groups/{GROUP_ID}/members"
-    response = requests.post(url, headers=headers, json=payload)
+    if response.status_code != 200:
+        print(f"Failed to get group definition. Status code: {response.status_code}")
+        return
 
-    if response.status_code == 200:
+    group_definition = response.json()
+
+    # Add the new member to the group definition
+    members = group_definition.get("members", [])
+    members.append({"id": HOST_OR_CLUSTER_ID, "type": "Resource"})
+    group_definition["members"] = members
+
+    # Update the group with the new member
+    update_url = f"{VROPS_BASE_URL}/suite-api/api/resources/groups/{GROUP_ID}"
+    update_response = requests.put(update_url, headers=headers, json=group_definition)
+
+    if update_response.status_code == 200:
         print("Host added to the group successfully!")
     else:
-        print(f"Failed to add host to group. Status code: {response.status_code}")
-        print(response.text)
+        print(f"Failed to add host to group. Status code: {update_response.status_code}")
+        print(update_response.text)
 
 def get_auth_token():
     # Authenticate and obtain an API token
@@ -50,7 +57,9 @@ def get_auth_token():
     response = requests.post(auth_url, json=auth_payload)
 
     if response.status_code == 200:
-        return response.json()["token"]
+        # Extract the token from the JSON response
+        token = response.json()["token"]
+        return token
     else:
         raise Exception("Authentication failed.")
 
