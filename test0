@@ -21,6 +21,27 @@ def get_vcenter_session_token(vcenter_ip, vcenter_username, vcenter_password):
     else:
         raise Exception("Failed to get vCenter session token.")
 
+def tag_category_exists(vcenter_ip, session_token, category_name):
+    category_url = f"https://{vcenter_ip}/rest/com/vmware/cis/tagging/category"
+    headers = {
+        "Content-Type": "application/json",
+        "vmware-api-session-id": session_token
+    }
+
+    response = requests.get(category_url, headers=headers, verify=False)
+
+    if response.status_code == 200:
+        categories = response.json()["value"]
+        for category in categories:
+            if category["name"] == category_name:
+                return category["id"]
+    else:
+        raise Exception("Failed to get tag categories.")
+
+    return None
+
+
+
 # Create a tag category
 def create_tag_category(vcenter_ip, session_token, category_name, category_description):
     category_url = f"https://{vcenter_ip}/rest/com/vmware/cis/tagging/category"
@@ -151,6 +172,17 @@ def delete_tag_from_object(vcenter_ip, session_token, tag_id, object_id):
 if __name__ == "__main__":
     # Step 1: Authenticate and get the vCenter session token
     session_token = get_vcenter_session_token(vcenter_ip, vcenter_username, vcenter_password)
+
+ # Step 2: Check if the tag category exists and create it if it doesn't
+    category_name = "YourTagCategory"
+    category_id = tag_category_exists(vcenter_ip, session_token, category_name)
+
+    if not category_id:
+        category_description = "Category for your tags"
+        category_id = create_tag_category(vcenter_ip, session_token, category_name, category_description)
+    else:
+        print(f"Tag category '{category_name}' already exists with ID: {category_id}")
+
 
     # Step 2: Create a tag category (optional if not already created)
     category_name = "YourTagCategory"
