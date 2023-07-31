@@ -1,0 +1,174 @@
+import requests
+import json
+
+# Define your vCenter connection details
+vcenter_ip = "your_vcenter_ip"
+vcenter_username = "your_username"
+vcenter_password = "your_password"
+
+# Authenticate and get the vCenter session token
+def get_vcenter_session_token(vcenter_ip, vcenter_username, vcenter_password):
+    session_url = f"https://{vcenter_ip}/rest/com/vmware/cis/session"
+    session_data = {
+        "username": vcenter_username,
+        "password": vcenter_password
+    }
+
+    response = requests.post(session_url, data=json.dumps(session_data), verify=False)
+
+    if response.status_code == 200:
+        return response.json()["value"]
+    else:
+        raise Exception("Failed to get vCenter session token.")
+
+# Create a tag category
+def create_tag_category(vcenter_ip, session_token, category_name, category_description):
+    category_url = f"https://{vcenter_ip}/rest/com/vmware/cis/tagging/category"
+    headers = {
+        "Content-Type": "application/json",
+        "vmware-api-session-id": session_token
+    }
+
+    category_data = {
+        "name": category_name,
+        "description": category_description
+    }
+
+    response = requests.post(category_url, headers=headers, data=json.dumps(category_data), verify=False)
+
+    if response.status_code == 200:
+        return response.json()["value"]
+    else:
+        raise Exception("Failed to create tag category.")
+
+# Check if the tag already exists in the specified category
+def tag_exists(vcenter_ip, session_token, tag_name, category_id):
+    tags_url = f"https://{vcenter_ip}/rest/com/vmware/cis/tagging/tag"
+    headers = {
+        "Content-Type": "application/json",
+        "vmware-api-session-id": session_token
+    }
+
+    response = requests.get(tags_url, headers=headers, verify=False)
+
+    if response.status_code == 200:
+        tags = response.json()["value"]
+        for tag in tags:
+            if tag["name"] == tag_name and tag["category_id"] == category_id:
+                return True
+    else:
+        raise Exception("Failed to get tags.")
+
+    return False
+
+# Create a tag
+def create_tag(vcenter_ip, session_token, tag_name, tag_description, category_id):
+    # Check if the tag already exists
+    if tag_exists(vcenter_ip, session_token, tag_name, category_id):
+        print(f"Tag '{tag_name}' already exists in the category.")
+        return None
+
+    tag_url = f"https://{vcenter_ip}/rest/com/vmware/cis/tagging/tag"
+    headers = {
+        "Content-Type": "application/json",
+        "vmware-api-session-id": session_token
+    }
+
+    tag_data = {
+        "name": tag_name,
+        "description": tag_description,
+        "category_id": category_id
+    }
+
+    response = requests.post(tag_url, headers=headers, data=json.dumps(tag_data), verify=False)
+
+    if response.status_code == 200:
+        return response.json()["value"]
+    else:
+        raise Exception("Failed to create tag.")
+
+# Assign the tag to the object (ESXi host or cluster)
+def assign_tag_to_object(vcenter_ip, session_token, tag_id, object_id):
+    tagging_url = f"https://{vcenter_ip}/rest/com/vmware/cis/tagging/tag-association"
+    headers = {
+        "Content-Type": "application/json",
+        "vmware-api-session-id": session_token
+    }
+
+    association_data = {
+        "object_id": object_id,
+        "tag_id": tag_id
+    }
+
+    response = requests.post(tagging_url, headers=headers, data=json.dumps(association_data), verify=False)
+
+    if response.status_code == 200:
+        return True
+    else:
+        raise Exception("Failed to assign tag to object.")
+
+# Get the object_id for an ESXi host or cluster
+def get_object_id(vcenter_ip, session_token, object_type, object_name):
+    if object_type not in ["host", "cluster"]:
+        raise ValueError("Invalid object type. Use 'host' or 'cluster'.")
+
+    url = f"https://{vcenter_ip}/rest/vcenter/{object_type}"
+    headers = {
+        "Content-Type": "application/json",
+        "vmware-api-session-id": session_token
+    }
+
+    response = requests.get(url, headers=headers, verify=False)
+
+    if response.status_code == 200:
+        objects = response.json()["value"]
+        for obj in objects:
+            if obj["name"] == object_name:
+                return obj["host"] if object_type == "host" else obj["cluster"]
+    else:
+        raise Exception("Failed to get object_id.")
+
+# Delete the tag from the object
+def delete_tag_from_object(vcenter_ip, session_token, tag_id, object_id):
+    tagging_url = f"https://{vcenter_ip}/rest/com/vmware/cis/tagging/tag-association"
+    headers = {
+        "Content-Type": "application/json",
+        "vmware-api-session-id": session_token
+    }
+
+    association_data = {
+        "object_id": object_id,
+        "tag_id": tag_id
+    }
+
+    response = requests.delete(tagging_url, headers=headers, data=json.dumps(association_data), verify=False)
+
+    if response.status_code == 200:
+        return True
+    else:
+        raise Exception("Failed to delete tag from object.")
+
+if __name__ == "__main__":
+    # Step 1: Authenticate and get the vCenter session token
+    session_token = get_vcenter_session_token(vcenter_ip, vcenter_username, vcenter_password)
+
+    # Step 2: Create a tag category (optional if not already created)
+    category_name = "YourTagCategory"
+    category_description = "Category for your tags"
+    category_id = create_tag_category(vcenter_ip, session_token, category_name, category_description)
+
+    # Step 3: Create a tag
+    tag_name = "YourTag"
+    tag_description = "Description for your tag"
+    tag_id = create_tag(vcenter_ip, session_token, tag_name, tag_description, category_id)
+
+    # Step 4: Get the object_id for the ESXi host or cluster you want to tag
+    object_name = "esxi_host1"  # Replace this with the name of your ESXi host or cluster
+    object_type = "host"  # Change to "cluster" if you want to tag a cluster
+    object_id = get_object_id(vcenter_ip, session_token, object_type, object_name)
+
+    # Step 5: Assign the tag to the ESXi host or cluster
+    assign_tag_to_object(vcenter_ip, session_token, tag_id, object_id)
+
+    # Step 6: (Optional) Delete the tag from the object
+    # delete_tag_from_object(vcenter_ip, session_token, tag_id, object_id)
