@@ -1,57 +1,16 @@
-@app.route('/delete', method='POST')
-def delete_product():
-    product_id = request.forms.get('id')
-    product_key = f'product:{product_id}'
-       
-    # Check if the product exists
-    if r.exists(product_key):
-        # Retrieve the product data
-        product = r.hgetall(product_key)
-        
-        # Add a "deleted" field to the product data
-        deletion_date = "2023-08-07"  # Use the actual deletion date
-        product[b'deleted'] = deletion_date
-        
-        # Store the deleted product in a separate hash
-        deleted_key = f'deleted_product:{product_id}'
-        r.hmset(deleted_key, product)
-        
-        # Remove the product from the main products hash
-        r.delete(product_key)
-        
-        return 'Product marked as deleted.'
-    else:
-        return 'Product not found.'
-
-@app.route('/history')
-def history():
-    # Retrieve all product keys, including deleted ones
-    all_keys = r.keys('*')
-
-    # Retrieve product data for each key
-    all_products = []
-    for key in all_keys:
-        if key.startswith('product:') or key.startswith('deleted_product:'):
-            product = r.hgetall(key)
-            all_products.append(product)
-
-    return template('history', products=all_products)
-
 <!-- ... -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+
 <table id="productTable" class="display">
     <!-- ... -->
     <tbody>
         % for product in products:
         <tr>
             <!-- ... -->
+            <td id="description_${product[b'id'].decode()}">${product[b'description'].decode()}</td>
             <td>
                 % if not b'deleted' in product:
-                    <button class="deleteButton"
-                            data-id="${product[b'id'].decode()}"
-                            data-name="${product[b'name'].decode()}"
-                            data-description="${product[b'description'].decode()}">
-                        Delete
-                    </button>
+                    <i class="fas fa-edit editIcon" data-id="${product[b'id'].decode()}"></i>
                 % endif
             </td>
         </tr>
@@ -63,29 +22,47 @@ def history():
     $(document).ready(function() {
         $('#productTable').DataTable();
 
-        // Handle delete button clicks
-        $('.deleteButton').on('click', function() {
+        // Handle edit icon clicks
+        $('.editIcon').on('click', function() {
             var productId = $(this).data('id');
-            var productName = $(this).data('name');
-            var productDescription = $(this).data('description');
-
-            if (confirm('Are you sure you want to delete the product:\n' +
-                        'Name: ' + productName + '\n' +
-                        'Description: ' + productDescription)) {
-                deleteProduct(productId, productName, productDescription);
-            }
+            openEditDialog(productId);
         });
 
-        function deleteProduct(productId, productName, productDescription) {
-            $.post('/delete', { id: productId, name: productName, description: productDescription }, function(data) {
+        function openEditDialog(productId) {
+            var description = $('#description_' + productId).text();
+            var editInput = '<input type="datetime-local" id="editInput_' + productId + '" value="' + description + '">';
+            var saveIcon = '<i class="fas fa-save saveIcon" data-id="' + productId + '"></i>';
+            $('#description_' + productId).html(editInput + saveIcon);
+
+            $('.saveIcon').on('click', function() {
+                var productId = $(this).data('id');
+                var newDescription = $('#editInput_' + productId).val();
+                updateProductDescription(productId, newDescription);
+            });
+        }
+
+        function updateProductDescription(productId, newDescription) {
+            var formData = new FormData();
+            formData.append('id', productId);
+            formData.append('description', newDescription);
+
+            fetch('/update', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(data => {
                 if (data === 'ok') {
-                    alert('Product deleted successfully.');
+                    alert('Product description updated successfully.');
                     // You may want to refresh the table or update the UI here
                 } else {
-                    alert('Error deleting product.');
+                    alert('Error updating product description.');
                 }
+            })
+            .catch(error => {
+                console.error('Error updating product description:', error);
             });
         }
     });
 </script>
-
+<!-- ... -->
