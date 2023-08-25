@@ -1,68 +1,47 @@
-<!-- Add Bootstrap CSS link -->
-<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login</title>
+</head>
+<body>
+    <form id="login-form">
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" required><br>
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required><br>
+        <button type="button" id="login-button">Log In</button>
+    </form>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const loginButton = document.getElementById('login-button');
+            loginButton.addEventListener('click', loginUser);
 
-<form id="myForm" onsubmit="return showConfirmation()">
-  <label for="textbox">Textbox:</label>
-  <input type="text" id="textbox" required>
+            async function loginUser() {
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
 
-  <label for="dropdown">Dropdown:</label>
-  <select id="dropdown" required>
-    <option value="">Select an option</option>
-    <option value="option1">Option 1</option>
-    <option value="option2">Option 2</option>
-    <option value="option3">Option 3</option>
-  </select>
+                const formData = new FormData();
+                formData.append('username', username);
+                formData.append('password', password);
 
-  <button type="submit" class="btn btn-primary">Submit</button>
-</form>
+                try {
+                    const response = await fetch('/authenticate', {
+                        method: 'POST',
+                        body: formData
+                    });
 
-<!-- Bootstrap Modal -->
-<div class="modal" tabindex="-1" role="dialog" id="confirmationModal">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Confirmation</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
-      </div>
-      <div class="modal-body">
-        <p id="confirmationMessage">Are you sure you want to submit the form?</p>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">NO</button>
-        <button type="button" class="btn btn-primary" onclick="confirmSubmit(true)">YES</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Add Bootstrap JS script -->
-<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-
-<script>
-  function showConfirmation() {
-    const textboxValue = document.getElementById("textbox").value;
-    const dropdownValue = document.getElementById("dropdown").value;
-
-    if (textboxValue.trim() === "" || dropdownValue.trim() === "") {
-      alert("Please fill out both the textbox and the dropdown before submitting.");
-      return false; // Cancel form submission
-    }
-
-    // Update the confirmation message with the textbox value
-    document.getElementById("confirmationMessage").textContent = `Are you sure you want to add ${textboxValue} ?`;
-
-    // Show the Bootstrap modal
-    $('#confirmationModal').modal('show');
-    return false; // Cancel form submission
-  }
-
-  function confirmSubmit(confirmed) {
-    $('#confirmationModal').modal('hide'); // Hide the modal
-
-    if (confirmed) {
-      document.getElementById("myForm").submit(); // Proceed with form submission
-    }
-  }
-</script>
+                    if (response.ok) {
+                        // Redirect to the index page
+                        window.location.href = '/';
+                    } else {
+                        console.error('Authentication failed');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
