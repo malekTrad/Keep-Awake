@@ -1,47 +1,13 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Login</title>
-</head>
-<body>
-    <form id="login-form">
-        <label for="username">Username:</label>
-        <input type="text" id="username" name="username" required><br>
-        <label for="password">Password:</label>
-        <input type="password" id="password" name="password" required><br>
-        <button type="button" id="login-button">Log In</button>
-    </form>
-    
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const loginButton = document.getElementById('login-button');
-            loginButton.addEventListener('click', loginUser);
+function getCurrentDateTime() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
 
-            async function loginUser() {
-                const username = document.getElementById('username').value;
-                const password = document.getElementById('password').value;
+    return `${year}${month}${day}-${hours}${minutes}`;
+}
 
-                const formData = new FormData();
-                formData.append('username', username);
-                formData.append('password', password);
-
-                try {
-                    const response = await fetch('/authenticate', {
-                        method: 'POST',
-                        body: formData
-                    });
-
-                    if (response.ok) {
-                        // Redirect to the index page
-                        window.location.href = '/';
-                    } else {
-                        console.error('Authentication failed');
-                    }
-                } catch (error) {
-                    console.error('Error:', error);
-                }
-            }
-        });
-    </script>
-</body>
-</html>
+const formattedDateTime = getCurrentDateTime();
+console.log(formattedDateTime); // Output: 20230829-1416
