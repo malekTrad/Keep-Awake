@@ -1,13 +1,6 @@
-function getCurrentDateTime() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
+In your original PowerShell script, there's a section where you're adding random padding characters to the input string. The code uses the range (65..90) + (97..122) to generate random ASCII characters. However, this range does not cover all possible UTF-8 characters, including some special characters like 'é' (0xE9 in UTF-8).
 
-    return `${year}${month}${day}-${hours}${minutes}`;
-}
-
-const formattedDateTime = getCurrentDateTime();
-console.log(formattedDateTime); // Output: 20230829-1416
+If you're dealing with non-ASCII characters like 'é', you need to ensure that the random padding generation includes the necessary byte values for those characters. Additionally, when decoding, you should handle the padding characters correctly.
+In this version, random padding characters are generated using chr(random.choice(range(256))), which covers the entire range of possible byte values. This should prevent issues with non-ASCII characters like 'é'.
+padding_chars = ''.join([chr(random.choice(range(256))) for _ in range(padding_len)])
+In this version, the random padding characters are generated using chr(random.choice(range(256))), which covers the entire range of possible byte values. This ensures that you can handle both ASCII and non-ASCII characters correctly while still using the specified range for generating padding characters.
