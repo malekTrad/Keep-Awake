@@ -1,1 +1,21 @@
-r'/add/auth=<auth:re:[a-zA-Z0-9_.\-]{1,%d}>\?param=<param:re:[a-zA-Z0-9_.\-]{1,%d}>&obj=<obj:re:[a-zA-Z0-9_.\-]{1,%d}>&timeout=<timeout:int>' % (MAX_AUTH_LENGTH, MAX_PARAM_LENGTH, MAX_OBJ_LENGTH), method='GET'
+        // Function to check if the 'username' cookie has expired
+        function checkCookie() {
+            const cookieValue = document.cookie
+                .split('; ')
+                .find(row => row.startsWith('username='));
+            
+            if (cookieValue) {
+                const [, value] = cookieValue.split('=');
+                if (value) {
+                    const now = new Date().getTime();
+                    const expirationDate = new Date(value).getTime();
+                    if (expirationDate > now) {
+                        // The 'username' cookie has not expired
+                        return true;
+                    }
+                }
+            }
+            
+            // The 'username' cookie is either missing or has expired
+            return false;
+        }
