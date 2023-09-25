@@ -1,21 +1,28 @@
-        // Function to check if the 'username' cookie has expired
-        function checkCookie() {
-            const cookieValue = document.cookie
-                .split('; ')
-                .find(row => row.startsWith('username='));
-            
-            if (cookieValue) {
-                const [, value] = cookieValue.split('=');
-                if (value) {
-                    const now = new Date().getTime();
-                    const expirationDate = new Date(value).getTime();
-                    if (expirationDate > now) {
-                        // The 'username' cookie has not expired
-                        return true;
-                    }
-                }
-            }
-            
-            // The 'username' cookie is either missing or has expired
-            return false;
-        }
+function validateInput(event) {
+  const keyCode = event.keyCode || event.which;
+  const key = String.fromCharCode(keyCode);
+
+  // Allow alphanumeric characters and Enter key (keyCode 13)
+  if (!/^[a-zA-Z0-9\r\n]*$/.test(key)) {
+    event.preventDefault();
+    return false;
+  }
+}
+
+function validatePaste(event) {
+  // Check if Ctrl+V (or Cmd+V on Mac) is used for pasting
+  if ((event.ctrlKey || event.metaKey) && (event.key === 'v' || event.key === 'V')) {
+    // Allow pasting
+    return true;
+  } else {
+    // Get the pasted text
+    const clipboardData = event.clipboardData || window.clipboardData;
+    const pastedText = clipboardData.getData("text/plain");
+
+    // Allow only alphanumeric characters in the pasted text
+    if (!/^[a-zA-Z0-9]*$/.test(pastedText)) {
+      event.preventDefault();
+      return false;
+    }
+  }
+}
