@@ -1,28 +1,26 @@
-function validateInput(event) {
-  const keyCode = event.keyCode || event.which;
-  const key = String.fromCharCode(keyCode);
+const elementsArray = [element1, element2, element3]; // Replace with your actual array of elements
 
-  // Allow alphanumeric characters and Enter key (keyCode 13)
-  if (!/^[a-zA-Z0-9\r\n]*$/.test(key)) {
-    event.preventDefault();
-    return false;
-  }
-}
+async function processElements() {
+  for (const element of elementsArray) {
+    try {
+      const response = await fetch('your-backend-endpoint', {
+        method: 'POST',
+        body: JSON.stringify(element),
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
 
-function validatePaste(event) {
-  // Check if Ctrl+V (or Cmd+V on Mac) is used for pasting
-  if ((event.ctrlKey || event.metaKey) && (event.key === 'v' || event.key === 'V')) {
-    // Allow pasting
-    return true;
-  } else {
-    // Get the pasted text
-    const clipboardData = event.clipboardData || window.clipboardData;
-    const pastedText = clipboardData.getData("text/plain");
-
-    // Allow only alphanumeric characters in the pasted text
-    if (!/^[a-zA-Z0-9]*$/.test(pastedText)) {
-      event.preventDefault();
-      return false;
+      if (response.ok) {
+        const data = await response.json();
+        // Process data here
+      } else {
+        // Handle errors
+      }
+    } catch (error) {
+      // Handle network errors or other exceptions
     }
   }
 }
+
+processElements(); // Start processing the elements
