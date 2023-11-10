@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dynamic Window Resize</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      /* Add some content to make the body size change */
+    }
+  </style>
+</head>
+<body>
+  <script>
+    function resizeWindow() {
+      // Resize the window based on the body's scroll width and height
+      window.resizeTo(document.body.scrollWidth, document.body.scrollHeight);
+    }
+
+    // Attach the resizeWindow function to the resize event of the body
+    document.body.addEventListener('resize', resizeWindow);
+
+    // Trigger the initial resize
+    resizeWindow();
+  </script>
+</body>
+</html>
