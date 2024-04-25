@@ -1,29 +1,169 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dynamic Window Resize</title>
-  <style>
-    body {
-      margin: 0;
-      padding: 20px;
-      /* Add some content to make the body size change */
-    }
-  </style>
-</head>
-<body>
-  <script>
-    function resizeWindow() {
-      // Resize the window based on the body's scroll width and height
-      window.resizeTo(document.body.scrollWidth, document.body.scrollHeight);
+# Import functions from common.ps
+. .\common.ps
+
+# Recuperation en DB d'un fichier stocke, en RAM ou en FILESYSTEM
+# La DB doit deja etre ouverte.
+# [SourceFileNameFromDB] correspond au champ D_file_name de [STAT_VIRTU.t_vs_files]
+#
+# retourne le contenu du fichier en cas de succes
+#
+# Si TargetFileSystemLocation indique un emplacement dans le filesystem le fichier est enregistre
+#
+function PullFile {
+    param (
+        [object] $mydb,
+        [string] $SourceFileNameFromDB,
+        [object] $zLogger,
+        [string] $TargetFileSystemLocation
+    )
+
+    $fName = "PullFile::"
+
+    LogDump $zLogger "$fName Entering"
+
+    $HasFailed = $false
+    $MsgFailure = ''
+
+    $data_orig = @()
+
+    # Le fichier existe-t-il en DB ?
+    LogDump $zLogger "Searching for file [$SourceFileNameFromDB]"
+    $sql_req = "select * from $dbtable_file where D_file_name='$SourceFileNameFromDB'"
+    LogDump $zLogger "req=[$sql_req]"
+    ($statusSQL, $cursor) = DoSqlRequest $mydb $sql_req $zLogger
+
+    # Succes recuperation donnees ? Non
+    if (-not $statusSQL) {
+        $HasFailed = $true
+        $MsgFailure = '[DB]Problem [SELECT]'
+        LogDump $zLogger "$fName FAILURE [$MsgFailure]"
     }
 
-    // Attach the resizeWindow function to the resize event of the body
-    document.body.addEventListener('resize', resizeWindow);
+    # On continue ?
+    if (-not $HasFailed) {
+        $cursor.execute($sql_req)
+        $rows = $cursor.fetchall()
+        # get the table column names
+        $columns = $cursor.description
+        # We can convert the Row objects to true tuples so they can be serialized:
+        $results = @{}
+        foreach ($value in $rows) {
+            $temp = @{}
+            for ($index = 0; $index -lt $columns.Count; $index++) {
+                $temp[$columns[$index][0]] = $value[$index]
+            }
+            $results += @($temp)
+        }
+        # a-t-on des lignes ?
+        if ($results.Count -eq 0) {
+            $HasFailed = $true
+            $MsgFailure = '[DB]FileNotFound'
+            LogDump $zLogger "$fName FAILURE [$MsgFailure]"
+        }
 
-    // Trigger the initial resize
-    resizeWindow();
-  </script>
-</body>
-</html>
+        # tout va bien on continue
+        if (-not $HasFailed) {
+            # hash original du fichier avant envoie en base
+            $hash_file_original = $results[0]['D_file_hash']
+            # date du fichier en db
+            $date_of_file = $results[0]['D_unixtime']
+
+            # on ne fait pas confiance au tri sql, on va iterer nous meme sur les noms des chunks que l'on va trier
+            $parts_in_no_order = @()
+
+            # maintenant c'est trie
+            foreach ($r in $results) {
+                $parts_in_no_order += $r['D_chunk_name']
+            }
+
+            # cette liste ne porte plus bien son nom, car maintenant elle est triee
+            $parts_in_no_order.Sort()
+
+            # on reconstruit le fichier original en memoire
+            $data_b64 = @()
+
+            # on evalue les chunks dans l'ordre maintenant, on les controle, on les fusionne
+            foreach ($p in $parts_in_no_order) {
+                # liste potentiellement non triee des chunks, mais pas vraiment sur
+                foreach ($r in $results) {
+                    if ($r['D_chunk_name'] -eq $p) {
+                        # check hash chunk from db
+                        $m = New-Object System.Security.Cryptography.MD5
+                        $m.update($r['D_chunk_data'])
+                        $tmpfile_digest = [BitConverter]::ToString($m.Hash).Replace("-", "").ToLower()
+                        if ($tmpfile_digest -ne $r['D_chunk_hash']) {
+                            $HasFailed = $true
+                            $MsgFailure = '[DB]Wrong chunk hash [$p]'
+                            LogDump $zLogger "$fName FAILURE [$MsgFailure]"
+                            break
+                        }
+                        $data_b64 += $r['D_chunk_data']
+                    }
+                }
+                if ($HasFailed) { # Sur un mauvais hash on arrete aussi cette boucle
+                    break
+                }
+            }
+
+            # les hashs individuels des chunks sont bons, on contiue
+            if (-not $HasFailed) {
+                LogDump $zLogger "$fName Rebuilding original file from b64"
+                try {
+                    $data_orig = [Convert]::FromBase64String($data_b64)
+                } catch {
+                    $HasFailed = $true
+                    $MsgFailure = '[DB]Rebuilding original file from b64 [$p]'
+                    LogDump $zLogger "$fName FAILURE [$MsgFailure]"
+                    $data_orig = @()
+                }
+            }
+
+            if (-not $HasFailed) {
+                LogDump $zLogger "$fName Hashing from base64 original file"
+                $m = New-Object System.Security.Cryptography.MD5
+                $m.update($data_orig)
+                $tmpfile_digest = [BitConverter]::ToString($m.Hash).Replace("-", "").ToLower()
+
+                if ($tmpfile_digest -eq $hash_file_original) {
+                    LogDump $zLogger "$fName File hash is good for [$SourceFileNameFromDB]"
+                } else {
+                    $HasFailed = $true
+                    $MsgFailure = '[DB]Wrong file hash [$SourceFileNameFromDB]'
+                    LogDump $zLogger "$fName FAILURE [$MsgFailure]"
+                }
+            }
+
+            # ecrire le fichier dans le filesystem si necessaire
+            if (-not $HasFailed) {
+                if (-not $TargetFileSystemLocation) { # doit-on ecrire dans le file system le fichie cible ?
+                    # ici non
+                    LogDump $zLogger "$fName Returning data files to caller without writing file"
+                } else {
+                    # ecrire dans le filesystem
+                    LogDump $zLogger "$fName Writing data file [$TargetFileSystemLocation]"
+                    try {
+                        [System.IO.File]::WriteAllBytes($TargetFileSystemLocation, $data_orig)
+                    } catch {
+                        $HasFailed = $true
+                        $MsgFailure = '[DB2File]Storing data for [$SourceFileNameFromDB] in [$TargetFileSystemLocation], [$_]'
+                        LogDump $zLogger "$fName FAILURE [$MsgFailure]"
+                    }
+                }
+
+                if (-not $HasFailed) {
+                    LogDump $zLogger "$fName Success for storing [$SourceFileNameFromDB]"
+                    $MsgFailure = "Success"
+                }
+            }
+        }
+    }
+
+    LogDump $zLogger "$fName HasFailed=[$HasFailed], MsgFailure=[$MsgFailure], SourceFile=[$SourceFileNameFromDB]"
+
+    LogDump $zLogger "$fName Exiting"
+    return ,@($HasFailed, $MsgFailure, $data_orig)
+}
+
+# GLOBALES au module
+# localisation en DB
+$dbtable_file = "STAT_VIRTU.t_vs_files"
