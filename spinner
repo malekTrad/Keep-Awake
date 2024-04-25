@@ -1,144 +1,157 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <style>
-        /* Styles for the modal */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal-content {
-            background-color: #fefefe;
-            padding: 20px;
-            border: 1px solid #888;
-            width: 50%;
-            text-align: center;
-        }
-
-        /* Style for response messages */
-        #responseMessages {
-            text-align: left;
-        }
-
-        /* Center the "OK" button */
-        #okButton {
-            display: none;
-        }
-
-        /* Spinner styles */
-        .loader-container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .loader {
-            border: 4px solid #f3f3f3; /* Light grey */
-            border-top: 4px solid #3498db; /* Blue */
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 2s linear infinite; /* Add the animation here */
-            margin-right: 10px; /* Add some space between the spinner and text */
-        }
-
-        .button-container {
-            display: flex;
-            justify-content: center;
-            margin-top: 20px;
-        }
-
-        /* Keyframe animation for the spinner */
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
-</head>
-<body>
-    <div id="myModal" class="modal">
-        <div class="modal-content">
-            <div class="loader-container">
-                <div class="loader"></div> <!-- Add the spinner here -->
-                <span id="progressText">Processing 0/0...</span>
-            </div>
-            <div id="responseMessages"></div>
-            <div class="button-container">
-                <button id="okButton">OK</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        const elementsArray = [element1, element2, element3]; // Replace with your actual array of elements
-
-        async function processElements() {
-            const modal = document.getElementById('myModal');
-            const progressText = document.getElementById('progressText');
-            const responseMessages = document.getElementById('responseMessages');
-            const okButton = document.getElementById('okButton');
-            const spinner = document.querySelector('.loader'); // Get the spinner element
-
-            modal.style.display = 'block';
-
-            const results = [];
-
-            for (const element of elementsArray) {
-                try {
-                    progressText.textContent = `Processing ${results.length + 1}/${elementsArray.length}...`;
-
-                    const response = await fetch('your-backend-endpoint', {
-                        method: 'POST',
-                        body: JSON.stringify(element),
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    });
-
-                    if (response.ok) {
-                        const data = await response.json();
-                        const message = document.createElement('p');
-                        message.textContent = `Success adding element ${data.name}`;
-                        responseMessages.appendChild(message);
-                    } else {
-                        const message = document.createElement('p');
-                        message.textContent = 'Error with element';
-                        responseMessages.appendChild(message);
-                    }
-
-                    results.push('Processed'); // Push a result for each element
-
-                    // Add a short delay to display the response message
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-
-                } catch (error) {
-                    const message = document.createElement('p');
-                    message.textContent = 'Error with element';
-                    responseMessages.appendChild(message);
-                }
-            }
-
-            await Promise.all(results); // Wait for all elements to be processed
-
-            spinner.style.display = 'none'; // Hide the spinner
-            okButton.style.display = 'block'; // Show the "OK" button
-        }
-
-        okButton.addEventListener('click', function () {
-            modal.style.display = 'none'; // Close the modal when the "OK" button is clicked
-        });
-
-        processElements(); // Start processing the elements
-    </script>
-</body>
-</html>
+import os
+import sys
+import time,datetime
+import logging
+import logging.handlers
+import json
+import base64
+import hashlib
+import uuid
+import re
+import pyodbc 
+import getopt
+import base64
+import datetime
+import argparse
+import glob
+ 
+import common
+ 
+#
+# Recuperation en DB d'un fichier stocke, en RAM ou en FILESYSTEM
+# La DB doit deja etre ouverte.
+# [SourceFileNameFromDB] correspond au champ D_file_name de [STAT_VIRTU.t_vs_files]
+#
+# retourne le contenu du fichier en cas de succes
+#
+# Si TargetFileSystemLocation indique un emplacement dans le filesystem le fichier est enregistre
+#
+def PullFile(mydb, SourceFileNameFromDB, zLogger=None, TargetFileSystemLocation=None):
+  fName = "PullFile::"
+ 
+  common.LogDump(zLogger,fName+"Entering")
+  HasFailed = False
+  MsgFailure = ''
+ 
+  data_orig = bytes()
+ 
+  #Le fichier existe-t-il en DB ?
+  common.LogDump(zLogger, "Searching for file [{}]".format(SourceFileNameFromDB) )
+  sql_req = "select * from {} where D_file_name='{}'".format(dbtable_file, SourceFileNameFromDB)
+  common.LogDump(zLogger, "req=[{}]".format(sql_req) )
+  (statusSQL, cursor) = common.DoSqlRequest(mydb, sql_req, zLogger)
+ 
+  #succes recuperation donnees ? Non
+  if (statusSQL == False):
+    HasFailed = True
+    MsgFailure = '[DB]Problem [SELECT]'
+    common.LogDump(zLogger, fName+"FAILURE [{}]".format(MsgFailure) )
+ 
+  #On continue ?
+  if (HasFailed == False):
+    cursor.execute(sql_req)
+    rows = cursor.fetchall()
+    #get the table column names
+    columns = cursor.description
+    #We can convert the Row objects to true tuples so they can be serialized:
+    results = [{columns[index][0]:column for index, column in enumerate(value)} for value in rows]
+    # a-t-on des lignes ?
+    if (len(results) == 0):
+      HasFailed = True
+      MsgFailure = '[DB]FileNotFound'
+      common.LogDump(zLogger, fName+"FAILURE [{}]".format(MsgFailure) )
+ 
+    #tout va bien on continue
+    if (HasFailed == False):
+      # hash original du fichier avant envoie en base
+      hash_file_original = results[0]['D_file_hash']
+      # date du fichier en db
+      date_of_file = results[0]['D_unixtime']
+ 
+      #on ne fait pas confiance au tri sql, on va iterer nous meme sur les noms des chunks que l'on va trier
+      parts_in_no_order = []
+ 
+      #maintenant c'est trie
+      for r in results:
+        parts_in_no_order.append(r['D_chunk_name'])
+      
+      #cette liste ne porte plus bien son nom, car maintenant elle est triee
+      parts_in_no_order.sort()
+ 
+      # on reconstruit le fichier original en memoire
+      data_b64 = bytes()
+ 
+      #on evalue les chunks dans l'ordre maintenant, on les controle, on les fusionne
+      for p in parts_in_no_order:
+        #liste potentiellement non triee des chunks, mais pas vraiment sur
+        for r in results:
+          if r['D_chunk_name'] == p:
+            #check hash chunk from db
+            m = hashlib.md5()
+            m.update( r['D_chunk_data'] )
+            #m.update( r['D_chunk_data'].encode() )
+            tmpfile_digest = m.hexdigest()
+            if (tmpfile_digest !=  r['D_chunk_hash']):
+              HasFailed = True
+              MsgFailure = '[DB]Wrong chunk hash [{}]'.format(p)
+              common.LogDump(zLogger, fName+"FAILURE [{}]".format(MsgFailure) )
+              break
+            #data_b64 = data_b64 + r['D_chunk_data'].encode()
+            data_b64 = data_b64 + r['D_chunk_data']
+        if (HasFailed == True): #Sur un mauvais hash on arrete aussi cette boucle
+          break
+      
+      # les hashs individuels des chunks sont bons, on contiue
+      if HasFailed == False:   
+        common.LogDump(zLogger, fName+"Rebuilding original file from b64")
+        try: 
+          data_orig = base64.b64decode(data_b64)
+        except Exception as e:
+          HasFailed = True
+          MsgFailure = '[DB]Rebuilding original file from b64 [{}]'.format(p)
+          common.LogDump(zLogger, fName+"FAILURE [{}]".format(MsgFailure) )
+          data_orig = b''
+          
+      if HasFailed == False:
+        common.LogDump(zLogger, fName+"Hashing from base64 original file")
+        m = hashlib.md5()
+        m.update( data_orig )
+        tmpfile_digest = m.hexdigest()
+ 
+        if (tmpfile_digest == hash_file_original):
+          common.LogDump(zLogger, fName+"File hash is good for [{}]".format(SourceFileNameFromDB) )
+        else:
+          HasFailed = True
+          MsgFailure = '[DB]Wrong file hash [{}]'.format(SourceFileNameFromDB)
+          common.LogDump(zLogger, fName+"FAILURE [{}]".format(MsgFailure) )
+ 
+      # ecrire le fichier dans le filesystem si necessaire
+      if (HasFailed == False):
+        if TargetFileSystemLocation is None:  #doit-on ecrire dans le file system le fichie cible ?
+          #ici non
+          common.LogDump(zLogger, fName+"Returning data files to caller without writing file")
+        else:
+          #ecrire dans le filesystem
+          common.LogDump(zLogger, fName+"Writing data file [{}]".format(TargetFileSystemLocation) )
+          try:
+            with open(TargetFileSystemLocation,'wb+') as f:
+              f.write(data_orig)
+              f.close()
+          except Exception as e:
+            HasFailed = True
+            MsgFailure = '[DB2File]Storing data for [{}] in [{}], [{}]'.format(SourceFileNameFromDB, TargetFileSystemLocation, str(e))
+            common.LogDump(zLogger, fName+"FAILURE [{}]".format(MsgFailure) )
+ 
+      if (HasFailed == False):
+        common.LogDump(zLogger, fName+"Success for storing [{}]".format(SourceFileNameFromDB) )
+        MsgFailure = "Success"
+ 
+  common.LogDump( zLogger, fName+"HasFailed=[{}], MsgFailure=[{}], SourceFile=[{}]".format(str(HasFailed), MsgFailure, SourceFileNameFromDB) )
+ 
+  common.LogDump(zLogger,fName+"Exiting")
+  return (HasFailed, MsgFailure, data_orig)
+ 
+### GLOBALES au module ###
+ 
+# localisation en DB
+dbtable_file = "STAT_VIRTU.t_vs_files"
